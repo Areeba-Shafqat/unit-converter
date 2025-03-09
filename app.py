@@ -1,34 +1,56 @@
-import streamlit as st # streamlit is a library for building web apps
+import streamlit as st
+from pint import UnitRegistry
 
-#function to converts units based on predefined conversion factors or formula
-def convert_units(value, unit_from,unit_to):
-    
-    conversions={
-        "meter_kilometer":0.001, # 1 meter = 0.001 kilometer
-        "kilometer_meter":1000, # 1 kilometer = 1000 meter
-        "gram_kilogram":0.001, # 1 gram = 0.001 kilogram
-        "kilogram_gram":1000 # 1 ilogram = 1000 gram
-    }
-    key=f"{unit_from}_{unit_to}" # generate a key based on the input and output units
-    # logic to convert units
-    if key in conversions:
-        conversion=conversions[key]
-        return value*conversion
-    else:
-        return "Conversion not supported" # return a message if the conversion is not supported
-    
-st.title("Unit Converter") # set the title of the web app
+# Initialize Pint
+ureg = UnitRegistry()
 
-# user input: numerical value to convert
-value=st.number_input("Enter the value:",min_value=1.0,step=1.0)
+# Define unit categories with correct unit names
+unit_defaults = {
+    "Area": ("square meter", "square foot", 1.0),  # ✅ Fixed spacing issue
+    "Data Transfer Rate": ("bit / second", "kilobit / second", 1.0),  
+    "Digital Storage": ("byte", "kilobyte", 1.0),  
+    "Energy": ("joule", "calorie", 1.0),  
+    "Frequency": ("hertz", "kilohertz", 1.0),  
+    "Fuel Economy": ("kilometer / liter", "mile / gallon", 1.0),  
+    "Length": ("meter", "centimeter", 1.0),  
+    "Mass": ("kilogram", "gram", 1.0),  
+    "Plane Angle": ("degree", "radian", 1.0),  
+    "Pressure": ("pascal", "bar", 1.0),  
+    "Speed": ("meter / second", "kilometer / hour", 1.0),  
+    "Time": ("second", "minute", 1.0),  
+    "Volume": ("liter", "milliliter", 1.0)  
+}
 
-# dropdown to select unit to convert from
-unit_from=st.selectbox("Convert from:",["meter","kilometer","gram","kilogram"])
+# Streamlit UI
+st.title("Unit Converter")
 
-# dropdown to select unit to convert to 
-unit_to=st.selectbox("Cnvert to:",["meter","kilometer","gram","kilogram"])
+# Dropdown for selecting unit category
+unit_category = st.selectbox("Select Unit Category", list(unit_defaults.keys()), index=6)  # Default: Length
 
-# button to trigger the conversion
+# Get default units and value
+default_from_unit, default_to_unit, default_value = unit_defaults[unit_category]
+
+# Get valid units for the selected category
+compatible_units = ureg.get_compatible_units(default_from_unit)
+valid_units = sorted([str(unit) for unit in compatible_units])
+
+# Ensure default units exist in the list
+if default_from_unit not in valid_units:
+    valid_units.insert(0, default_from_unit)
+if default_to_unit not in valid_units:
+    valid_units.append(default_to_unit)
+
+# Dropdowns for "Convert from" and "Convert to"
+from_unit = st.selectbox("Convert from", valid_units, index=valid_units.index(default_from_unit))
+to_unit = st.selectbox("Convert to", valid_units, index=valid_units.index(default_to_unit))
+
+# Number input for value
+value = st.number_input("Enter Value:", min_value=0.0, format="%.2f", value=float(default_value))
+
+# Perform conversion
 if st.button("Convert"):
-    result =convert_units(value,unit_from,unit_to) # call the conversion function
-    st.write(f"Converted value: {result}") # display the result
+    try:
+        converted_value = (value * ureg(from_unit)).to(to_unit).magnitude
+        st.success(f"Converted value of {value} {from_unit} = {converted_value:.2f} {to_unit}")
+    except Exception as e:
+        st.error(f"⚠️ Conversion not supported: {e}")
